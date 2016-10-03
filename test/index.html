@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf8'>
+    <title>Drawashape Test Suite</title>
+    <link rel="stylesheet" href="vendor/qunit.css" type="text/css" media="screen">
+    <style>
+        body { margin: 0; }
+        canvas { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <div id="qunit"> </div>
+    <div id="qunit-fixture"> </div>
+    <div id="testIdToto">
+    <div id="testIdToto2">
+        
+    </div>
+    <script src="vendor/qunit.js"></script>
+    <script src="vendor/underscore.js"></script>
+    <script src="vendor/three.min.js"></script>
+    <script src="../drawashape.js"></script>
+    <script src="scene.js"></script>
+
+    <script type="text/javascript" charset="utf-8">
+
+        var element = document.getElementsByTagName("canvas");
+        var scene = new Scene({ cam3Dnear: 0.1 });
+        scene.draw3Din(document.getElementById("testIdToto"));
+
+
+        var geometry = new THREE.BoxGeometry(1, 1, 1);
+        var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        var cube = new THREE.Mesh(geometry, material);
+        scene.threeScene.add(cube);
+        scene.camera3D.position.z = 5;
+
+        function render() {
+            scene.renderer3D.render(scene.threeScene, scene.camera3D);
+            requestAnimationFrame(render);
+            cube.rotation.x += 0.1;
+            cube.rotation.y += 0.1;
+        }
+        render();
+    </script>
+</body>
+</html>
