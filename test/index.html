@@ -12,7 +12,7 @@
 <body>
     <div id="qunit"> </div>
     <div id="qunit-fixture"> </div>
-    <div id="testIdToto">
+    <div id="testIdToto" style="width: 50%">
     <div id="testIdToto2">
         
     </div>
@@ -24,22 +24,23 @@
 
     <script type="text/javascript" charset="utf-8">
 
-        var element = document.getElementsByTagName("canvas");
-        var scene = new Scene({ cam3Dnear: 0.1 });
-        scene.draw3Din(document.getElementById("testIdToto"));
+        var scene = new Scene();
+        scene.draw2Din(document.body);
 
 
         var geometry = new THREE.BoxGeometry(1, 1, 1);
         var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
         var cube = new THREE.Mesh(geometry, material);
         scene.threeScene.add(cube);
-        scene.camera3D.position.z = 5;
+        scene.camera2D.position.z = 5;
 
-        function render() {
-            scene.renderer3D.render(scene.threeScene, scene.camera3D);
+        var render = function () {
             requestAnimationFrame(render);
+
             cube.rotation.x += 0.1;
             cube.rotation.y += 0.1;
+
+            scene.renderer2D.render(scene.threeScene, scene.camera2D);
         }
         render();
     </script>

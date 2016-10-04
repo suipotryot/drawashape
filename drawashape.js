@@ -1,4 +1,5 @@
 (function(_) {
+    current_selected = null;
     // Define our constructor
     this.Scene = function(options) {
         var defaults = {
@@ -15,31 +16,31 @@
             cam2Dnear: 0.1,
             cam2Dfar: 100,
 
-            cam3Dfov: 70,
+            cam3Dfov: 30,
             cam3Daspect: 2,
             cam3Dnear: 1,
-            cam3Dfar: 100000,
+            cam3Dfar: 1000,
 
             gridHelperShow: true,
             gridHelperSize: 10,
             gridHelperStep: 1,
         };
         
-        // Variable to know when user is handling the click in 3D zone
-        this.handling3D = false;
-
         this.threeScene = new THREE.Scene();
 
         // Create options by extending defaults
         this.options = _.extend(defaults, options);
 
         // Set the Camera 2D of the scene
-        this.camera2D = new Camera2d(this.options.cam2Dleft,
+        this.camera2D = _.extend(new THREE.OrthographicCamera(
+                                        this.options.cam2Dleft,
                                         this.options.cam2Dright,
                                         this.options.cam2Dtop,
                                         this.options.cam2Dbottom,
                                         this.options.cam2Dnear,
-                                        this.options.cam2Dfar);
+                                        this.options.cam2Dfar),
+                                Camera2d);
+        this.camera2D.initPosition();
         this.threeScene.add(this.camera2D);
 
         // Set the Camera 3D of the scene
@@ -49,14 +50,16 @@
                                         this.options.cam3Dnear,
                                         this.options.cam3Dfar),
                                 Camera3d);
-        this.camera3D.updatePosition();
+        this.camera3D.initPosition();
         this.threeScene.add(this.camera3D);
 
         // Set the Grid Helper of the scene
         if (this.options.gridHelperShow) {
-            this.threeScene.add(new THREE.GridHelper(
+            var gridHelper = new THREE.GridHelper(
                 this.options.gridHelperSize,
-                this.options.gridHelperStep));
+                this.options.gridHelperStep);
+            gridHelper.rotateX( Math.PI / 2 );
+            this.threeScene.add(gridHelper);
         }
 
         // Set the Axis Helper of the scene
@@ -67,36 +70,40 @@
 
         // Set the ambiant light of the scene
         if (this.options.ambiantLightShow) {
-            this.threeScene.add(new THREE.AmbientLight(
-                this.options.ambiantLightColor));
+            this.ambiantLight = new THREE.AmbientLight(0x505050);
+            //this.threeScene.add(new THREE.AmbientLight( 0x404040, 100));
+            this.threeScene.add(this.ambiantLight);
         }
 
         // Set the spot light of the scene
-        var light = new THREE.SpotLight( 0xffffff, 0.7 );
-        light.position.set(0, 500, 2000);
-        light.castShadow = true;
-        light.shadowCameraNear = 200;
-        light.shadowCameraFar = 1000;
-        light.shadowCameraFov = 50;
-        light.shadowBias = -0.00022;
-        light.shadowMapWidth = 2048;
-        light.shadowMapHeight = 2048;
-        this.threeScene.add(light);
+        //var light = new THREE.SpotLight( 0xffffff, 0.7 );
+        //light.position.set(0, 500, 2000);
+        //light.castShadow = true;
+        //light.shadowCameraNear = 200;
+        //light.shadowCameraFar = 1000;
+        //light.shadowCameraFov = 50;
+        //light.shadowBias = -0.00022;
+        //light.shadowMapWidth = 2048;
+        //light.shadowMapHeight = 2048;
+        //this.threeScene.add(light);
 
         // Set the plane of the scene (used for intersect detection)
-        this.threeScene.add(new THREE.Mesh(
+        this.plane = new THREE.Mesh(
             new THREE.PlaneBufferGeometry( 40, 20, 8, 8 ),
             new THREE.MeshBasicMaterial( { visible: false } )
-        ));
+        );
+        this.threeScene.add(this.plane);
 
         // The Renderer
         if (WebglAvailable()) {
             this.renderer2D = new THREE.WebGLRenderer({
                 preserveDrawingBuffer: true,
             });
+            this.renderer2D.setSize(window.innerWidth, window.innerHeight);
             this.renderer3D = new THREE.WebGLRenderer({
                 preserveDrawingBuffer: true,
             });
+            this.renderer3D.setSize(window.innerWidth, window.innerHeight);
         } else {
             this.renderer2D = new THREE.CanvasRenderer({
                 preserveDrawingBuffer: true,
@@ -118,6 +125,8 @@
     // BIND EVENTS
     Scene.prototype.bindEvents = function() {
         var self = this;
+        this.width = this.renderer2D.domElement.width;
+        this.height = this.renderer2D.domElement.height;
         // 3D ZONE
         this.domElement3D.addEventListener( 'MozMousePixelScroll', function(event) {
             if (! event.ctrlKey)
@@ -137,36 +146,76 @@
             self.camera3D.updateRadious(delta);
         });
 
-        var moveAction = function(event) {
-                if (self.handling3D) {
-                    self.camera3D.updateEvent(event);
-                    self.camera3D.updateMatrix();
-                }
-            };
+        this.domElement2D.addEventListener( 'MozMousePixelScroll', function(event) {
+            if (! event.ctrlKey)
+                return;
+            event.preventDefault();
+            event.stopPropagation();
+
+            var delta = 0;
+            if (event.wheelDelta) {
+                // WebKit / Opera / Explorer 9
+                delta = event.wheelDelta / 40;
+            } else if (event.detail) {
+                // Firefox
+                delta = - event.detail / 3;
+            }
+
+            self.camera2D.updateRadious(delta);
+        });
+
+        var getMousePosition = function(event) {
+            var rect = self.renderer2D.domElement.getBoundingClientRect();
+            var style = window.getComputedStyle(self.renderer2D.domElement);
+            var paddingLeft = parseInt(style["padding-left"]);
+            var x = ((event.clientX - rect.left - paddingLeft) / self.width) * 2 - 1;
+            var y = - ((event.clientY - rect.top) / self.height) * 2 + 1;
+            return {x: x, y: y};
+        };
+
+        // WHEN USER DRAG IN THE SCREEN (2D) TO MOVE THE CAMERA
+        var moveAction2D = function(event) {
+            var pos = getMousePosition(event);
+            self.camera2D.updatePosition(self.previousCam2DPos, pos);
+            self.previousCam2DPos = pos;
+            self.camera2D.updateMatrix();
+        };
+
+        // WHEN USER DRAG IN THE SCREEN (3D) TO MOVE THE CAMERA
+        var moveAction3D = function(event) {
+            self.camera3D.updateEvent(event);
+            self.camera3D.updateMatrix();
+        };
 
         // WHEN USER CLIC
-        this.domElement3D.addEventListener('mousedown', function(event) {
-            if (self.handling3D)
+        this.domElement2D.addEventListener('mousedown', function(event) {
+            // Move camera on mouse3 + move
+            if (! event.ctrlKey && 4 != event.buttons)
                 return;
-            self.handling3D = true;
+            self.previousCam2DPos = getMousePosition(event);
+            self.domElement2D.addEventListener('mousemove', moveAction2D);
+        });
+        this.domElement3D.addEventListener('mousedown', function(event) {
             self.camera3D.updateMouseDown(event);
-            self.domElement3D.addEventListener('mousemove', moveAction);
+            self.domElement3D.addEventListener('mousemove', moveAction3D);
         });
 
         // WHEN USER RELEASE CLIC
+        this.domElement2D.addEventListener('mouseup', function(event) {
+            event.preventDefault();
+            self.domElement2D.removeEventListener('mousemove', moveAction2D);
+        });
         this.domElement3D.addEventListener('mouseup', function(event) {
-            if (! self.handling3D)
-                return;
-            self.handling3D = false;
-            self.domElement3D.removeEventListener('mousemove', moveAction);
+            event.preventDefault();
+            self.domElement3D.removeEventListener('mousemove', moveAction3D);
         });
 
         // WHEN MOUSE GET OUT OF THE DRAWING ZONE
+        this.domElement2D.addEventListener('mouseout', function(event) {
+            self.domElement2D.removeEventListener('mousemove', moveAction2D);
+        });
         this.domElement3D.addEventListener('mouseout', function(event) {
-            if (! self.handling3D)
-                return;
-            self.handling3D = false;
-            self.domElement3D.removeEventListener('mousemove', moveAction);
+            self.domElement3D.removeEventListener('mousemove', moveAction3D);
         });
 
     };
@@ -179,33 +228,39 @@
         el.appendChild(this.domElement3D);
     };
 
-    var Camera2d = _.extend(THREE.OrthographicCamera,
-            function(left, right, top, bottom, near, far) {
-        this.xMin = right;
-        this.xMax = left;
-        this.yMin = top;
-        this.yMax = bottom;
-        this.rotation.set(0, 0, Math.PI);
-        this.position.z = 20;
-        this.position.y = 0;
-        this.position.x = 0;
+    var Camera2d = {
 
-        this.UpdateRadious = function(delta) {
+        initPosition: function() {
+            this.ZOOM_MIN = 1;
+            this.ZOOM_MAX = 7;
+            this.xMin = this.right;
+            this.xMax = this.left;
+            this.yMin = this.top;
+            this.yMax = this.bottom;
+            this.rotation.set(0, 0, Math.PI);
+            this.position.z = 20;
+            this.position.y = 0;
+            this.position.x = 0;
+        },
+
+        updateRadious: function(delta) {
             this.zoom += delta * 0.01;
-            this.zoom = this.zoom > ZOOM_MAX ? ZOOM_MAX : this.zoom;
-            this.zoom = this.zoom < ZOOM_MIN ? ZOOM_MIN : this.zoom;
-            this.DontCrossBorders();
+            this.zoom = this.zoom > this.ZOOM_MAX ? this.ZOOM_MAX : this.zoom;
+            this.zoom = this.zoom < this.ZOOM_MIN ? this.ZOOM_MIN : this.zoom;
+            this.dontCrossBorders();
             this.updateProjectionMatrix();
-        };
+        },
 
-        this.updatePosition = function(previousPos, actualPos) {
+        updatePosition: function(previousPos, actualPos) {
+            console.log(previousPos);
+            console.log(actualPos);
             this.position.x += (this.xMax) * (previousPos.x - actualPos.x) / this.zoom;
             this.position.y += (this.yMax) * (previousPos.y - actualPos.y) / this.zoom;
-            this.DontCrossBorders();
-        };
+            this.dontCrossBorders();
+        },
 
         /** Make sure camera doesn't go away from the scene.  */
-        this.DontCrossBorders = function() {
+        dontCrossBorders: function() {
             if (this.position.y > this.yMax  - (this.yMax / this.zoom))
                 this.position.y = this.yMax - (this.yMax / this.zoom);
             if (this.position.y < this.yMin  - (this.yMin / this.zoom))
@@ -214,8 +269,8 @@
                 this.position.x = this.xMax - (this.xMax / this.zoom);
             if (this.position.x < this.xMin  - (this.xMin / this.zoom))
                 this.position.x = this.xMin - (this.xMin / this.zoom);
-        };
-    });
+        },
+    };
 
     var Camera3d = {
         theta: 45,
@@ -224,6 +279,10 @@
         onMouseDownPosition: new THREE.Vector2(),
         onMouseDownTheta: 45,
         onMouseDownPhi: 60,
+
+        initPosition: function() {
+            this.updatePosition();
+        },
 
         updatePosition: function() {
             this.position.x = this.radious * Math.sin( this.theta * Math.PI / 360 )
@@ -277,4 +336,25 @@
         }
     };
 
+    Scene.prototype.intersectPlane = function() {
+        this.raycaster.setFromCamera(this, this.camera2D);
+        var intersects = this.raycaster.intersectObject(this.plane);
+        return intersects[0];
+    };
+
+    /**
+     * Return an Shape containing mouse interseciton with the fisrt met target
+     * in given list.
+     */
+    Scene.prototype.intersectAny = function() {
+        this.raycaster.setFromCamera(this, this.camera2D);
+        var intersects = this.raycaster.intersectObjects(this.threeScene.children, true);
+        for (var i = 0; i < intersects.length; i++) {
+            // TODO
+            if (intersects[i].object.isADrawing) {
+                return  intersects[i].object;
+            }
+        }
+        return null;
+    };
 }(_));
