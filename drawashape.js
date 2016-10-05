@@ -1,6 +1,7 @@
 (function(_) {
     current_selected = null;
     color = 0xffffff;
+    INTERSECTED = null;
     // Define our constructor
     this.Scene = function(options) {
         var defaults = {
@@ -70,11 +71,11 @@
         }
 
         // Set the ambiant light of the scene
-        if (this.options.ambiantLightShow) {
-            this.ambiantLight = new THREE.AmbientLight(0x505050);
-            //this.threeScene.add(new THREE.AmbientLight( 0x404040, 100));
-            this.threeScene.add(this.ambiantLight);
-        }
+        //if (this.options.ambiantLightShow) {
+        //    this.ambiantLight = new THREE.AmbientLight(0x505050);
+        //    //this.threeScene.add(new THREE.AmbientLight( 0x404040, 100));
+        //    this.threeScene.add(this.ambiantLight);
+        //}
 
         // Set the spot light of the scene
         //var light = new THREE.SpotLight( 0xffffff, 0.7 );
@@ -87,6 +88,10 @@
         //light.shadowMapWidth = 2048;
         //light.shadowMapHeight = 2048;
         //this.threeScene.add(light);
+        var light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(1, 1, 1).normalize();
+        this.threeScene.add(light);
+        light.castShadow = true;
 
         // Set the plane of the scene (used for intersect detection)
         this.plane = new THREE.Mesh(
@@ -97,13 +102,11 @@
 
         // The Renderer
         if (WebglAvailable()) {
-            this.renderer2D = new THREE.WebGLRenderer({
-                preserveDrawingBuffer: true,
-            });
+            this.renderer2D = new THREE.WebGLRenderer();
+            this.renderer2D.setClearColor(0xf0f0f0);
             this.renderer2D.setSize(window.innerWidth, window.innerHeight);
-            this.renderer3D = new THREE.WebGLRenderer({
-                preserveDrawingBuffer: true,
-            });
+            this.renderer3D = new THREE.WebGLRenderer();
+            this.renderer3D.setClearColor(0xf0f0f0);
             this.renderer3D.setSize(window.innerWidth, window.innerHeight);
         } else {
             this.renderer2D = new THREE.CanvasRenderer({
@@ -260,6 +263,27 @@
             self.camera2D.updateMatrix();
         };
 
+        // WHEN USER JUST MOVE MOUSE IN 2D VIEW (HOVER OR NOT)
+        this.domElement2D.addEventListener("mousemove", function(event) {
+            var pos = getMousePosition(event);
+            var inter = self.intersectAny(getMousePosition(event));
+            if (inter.length > 0) {
+                if (INTERSECTED != inter[0].object) {
+                    if (INTERSECTED) {
+                        INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+                    }
+                    INTERSECTED = inter[0].object
+                    INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
+                    INTERSECTED.material.emissive.setHex(0xff0000);
+                }
+            } else {
+                if (INTERSECTED) {
+                    INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+                }
+                INTERSECTED = null;
+            }
+        });
+
         // WHEN USER DRAG IN THE SCREEN (3D) TO MOVE THE CAMERA
         var moveAction3D = function(event) {
             self.camera3D.updateEvent(event);
@@ -281,7 +305,7 @@
             } else {
             // 2. Create a Shape
                 var inter = self.intersectPlane(getMousePosition(event));
-                var line = new Line().core;
+                var line = new Line().ref;
                 var pos = getMousePosition(event);
                 line.translateX(inter.point.x);
                 line.translateY(inter.point.y);
@@ -440,16 +464,17 @@
      * Return an Shape containing mouse interseciton with the fisrt met target
      * in given list.
      */
-    Scene.prototype.intersectAny = function() {
-        this.raycaster.setFromCamera(this, this.camera2D);
+    Scene.prototype.intersectAny = function(mousePosition) {
+        this.raycaster.setFromCamera(mousePosition, this.camera2D);
         var intersects = this.raycaster.intersectObjects(this.threeScene.children, true);
+        var res = [];
         for (var i = 0; i < intersects.length; i++) {
             // TODO
-            if (intersects[i].object.isADrawing) {
-                return  intersects[i].object;
+            if (intersects[i].object.parent != this.threeScene) {
+                res.push(intersects[i]);
             }
         }
-        return null;
+        return res;
     };
 
     /**
@@ -498,8 +523,10 @@
 
     var Line = function() {
         var geometry = new THREE.BoxGeometry(1, 1, 1);
-        var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        var material = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+        this.ref = new THREE.Object3D();
         this.core = new THREE.Mesh(geometry, material);
+        this.ref.add(this.core);
     };
 
 }(_));
