@@ -1,6 +1,6 @@
 (function(_) {
     SELECTED = [];
-    color = 0xffffff;
+    COLOR = 0xffffff;
     INTERSECTED = null;
     DRAGGED = null;
     DRAWS = [];
@@ -29,6 +29,7 @@
             gridHelperSize: 10,
             gridHelperStep: 1,
         };
+        this.scale = 1;
         
         this.threeScene = new THREE.Scene();
 
@@ -72,28 +73,11 @@
                 this.options.axisHelperSize));
         }
 
-        // Set the ambiant light of the scene
-        //if (this.options.ambiantLightShow) {
-        //    this.ambiantLight = new THREE.AmbientLight(0x505050);
-        //    //this.threeScene.add(new THREE.AmbientLight( 0x404040, 100));
-        //    this.threeScene.add(this.ambiantLight);
-        //}
-
         // Set the spot light of the scene
-        //var light = new THREE.SpotLight( 0xffffff, 0.7 );
-        //light.position.set(0, 500, 2000);
-        //light.castShadow = true;
-        //light.shadowCameraNear = 200;
-        //light.shadowCameraFar = 1000;
-        //light.shadowCameraFov = 50;
-        //light.shadowBias = -0.00022;
-        //light.shadowMapWidth = 2048;
-        //light.shadowMapHeight = 2048;
-        //this.threeScene.add(light);
         var light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(1, 1, 1).normalize();
-        this.threeScene.add(light);
         light.castShadow = true;
+        this.threeScene.add(light);
 
         // Set the plane of the scene (used for intersect detection)
         this.plane = new THREE.Mesh(
@@ -124,6 +108,9 @@
         this.domElement2D = this.renderer2D.domElement;
         this.domElement3D = this.renderer3D.domElement;
 
+        this.scaleShape = LineArrowFactory.makeLine();
+        this.threeScene.add(this.scaleShape);
+
         this.bindEvents();
 
     };
@@ -136,12 +123,11 @@
      * @return null
      */
     Scene.prototype.setColor = function(color, colororig=false) {
-        this.color = color;
+        COLOR = color;
         if (colororig) {
             for (var shape in this.shapes) {
-                this.shapes[shape]
+                //TODO
             }
-            
         }
     },
 
@@ -150,7 +136,7 @@
      * @return hex
      */
     Scene.prototype.getColor = function() {
-        return this.color;
+        return COLOR;
     },
 
     Scene.prototype.setDrawType = function(drawtype) {
@@ -250,6 +236,22 @@
             this.threeScene.remove(SELECTED[o]);
         }
         SELECTED = [];
+    },
+
+    /**
+     * @desc Set the scale of the scene. Scale every shape already drawed
+     * with the ratio bietween old and new scale
+     * @param float scale
+     */
+    Scene.prototype.setScale = function(scale) {
+        var ratio = scale / this.scale;
+        for (var d in DRAWS) {
+            DRAWS[d].scale.set(DRAWS[d].scale.x,
+                               DRAWS[d].scale.y * ratio,
+                               DRAWS[d].scale.z * ratio);
+        }
+        
+        this.scale = scale;
     },
     // END METHODS
 
@@ -371,6 +373,7 @@
                     SELECTED = [line];
                     DRAWS[line.uuid] = line;
                 } else {
+                // 3. Start Dragging shape
                     inter[0].object.parent.select();
                     DRAGGED = inter[0].object;
                     self.domElement2D.addEventListener('mousemove', drag2D);
@@ -533,14 +536,14 @@
             // Hears allow to grab shape borders and redim it
             line.hears = [];
             line.hears.push(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.5),
-                    new THREE.MeshLambertMaterial({ color: 0x999999 })));
+                    new THREE.MeshLambertMaterial({ color: 0x000000 })));
             line.hears[0].position.set(-0.7, 0, 0);
             line.hears.push(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.5),
-                    new THREE.MeshLambertMaterial({ color: 0x999999 })));
+                    new THREE.MeshLambertMaterial({ color: 0x000000 })));
             line.hears[1].position.set(0.65, 0, 0);
             // Core is what the user works with
             line.core = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
-                    new THREE.MeshLambertMaterial({ color: 0x00ff00 }));
+                    new THREE.MeshLambertMaterial({ color: COLOR }));
 
             // 2. Add those to the Object
             line.add(line.core);
@@ -630,6 +633,111 @@
                                   this.parent.position.z);
             };
 
+            return line;
+        },
+    };
+
+    var LineArrowFactory = {
+        makeLine: function() {
+            var line = new THREE.Object3D();
+            // 1. Create hears and core
+            // Hears allow to grab shape borders and redim it
+            line.hears = [];
+            var coneGeometry = new THREE.CylinderGeometry(0, 0.2, 0.5, 8, 1);
+            line.hears.push(new THREE.Mesh(coneGeometry,
+                    new THREE.MeshLambertMaterial({ color: COLOR })));
+            line.hears[0].position.set(-0.7, 0, 0);
+            line.hears.push(new THREE.Mesh(coneGeometry,
+                    new THREE.MeshLambertMaterial({ color: COLOR })));
+            line.hears[1].position.set(0.65, 0, 0);
+            // Core is what the user works with
+            line.core = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.1, 0.1, 1, 3, 1),
+                    new THREE.MeshLambertMaterial({ color: COLOR }));
+
+            // 2. Add those to the Object
+            line.add(line.core);
+            line.add(line.hears[0]);
+            line.add(line.hears[1]);
+
+            // 3. Define custom methods for shape
+            line.select = function() { };
+            line.unselect = function() { };
+
+            var hover = function() {
+                this.currentHex = this.material.emissive.getHex();
+                this.material.emissive.setHex(0xff0000);
+            };
+            var hoverhear = function() {
+                this.currentHex = this.material.emissive.getHex();
+                this.material.emissive.setHex(0xff0000);
+                this.parent.core.hover();
+            };
+
+            var unhover = function() {
+                this.material.emissive.setHex(this.currentHex);
+            };
+            var unhoverhear = function() {
+                this.material.emissive.setHex(this.currentHex);
+                this.parent.core.unhover();
+            };
+
+            line.core.hover = hover;
+            line.core.unhover = unhover;
+            line.hears[0].hover = hoverhear;
+            line.hears[0].unhover = unhoverhear;
+            line.hears[1].hover = hoverhear;
+            line.hears[1].unhover = unhoverhear;
+
+            line.updatePosition = function() {
+                // 1
+                var hearLeft = this.hears[0],
+                    hearRight = this.hears[1];
+                var distToLeftHear = new THREE.Vector3();
+                distToLeftHear.copy(hearLeft.position);
+                hearLeft.position.set(0, 0, 0);
+                hearLeft.rotation.z = 0;
+                hearRight.rotation.z = 0;
+                hearRight.position.z = 0;
+                this.translateX(distToLeftHear.x);
+                this.translateY(distToLeftHear.y);
+                hearRight.translateX(-distToLeftHear.x);
+                hearRight.translateY(-distToLeftHear.y);
+                this.core.position.set(0, 0, 0);
+                // 2
+                this.core.scale.y = lineLenght(hearLeft.position,
+                                                hearRight.position);
+                // 3
+                var posB = hearRight.position;
+                var rotationZ = (posB.x != 0 ? Math.atan(posB.y / posB.x) : Math.PI / 2);
+                var delta = Math.PI / 2;
+                if (hearRight.position.x < 0) 
+                    delta = - delta;
+                hearRight.rotation.z = rotationZ - delta;
+                hearLeft.rotation.z = rotationZ + delta;
+                this.core.rotation.set(0, 0, rotationZ + Math.PI / 2); 
+                // 4
+                this.core.position.setX(hearRight.position.x / 2);
+                this.core.position.setY(hearRight.position.y / 2);
+                // TODO
+                //this.NoticeListeners();
+            };
+            
+            var drag2D = function(point) {
+                this.position.set(point.x - this.parent.position.x,
+                                  point.y - this.parent.position.y,
+                                  this.position.z);
+                this.parent.updatePosition();
+            };
+
+            line.hears[0].drag2D = drag2D;
+            line.hears[1].drag2D = drag2D;
+            line.core.drag2D = function(point) {
+                this.parent.position.set(point.x,
+                                  point.y,
+                                  this.parent.position.z);
+            };
+
             /**
              * @desc Return the lenght of the line between given 2 points
              * @param point1
@@ -641,9 +749,24 @@
                                  Math.pow(point1.x - point2.x, 2)) - 0.2;
             };
 
+            line.updatePosition();
             return line;
         },
     };
     // END SHAPES BY FACTORIES
+
+    
+    // TOOLS
+    /**
+     * @desc Return the lenght of the line between given 2 points
+     * @param point1
+     * @param point2
+     * @return float
+     */
+    var lineLenght = function(point1, point2) {
+        return Math.sqrt(Math.pow(point1.y - point2.y, 2) + 
+                         Math.pow(point1.x - point2.x, 2)) - 0.2;
+    };
+    // END TOOLS
 
 }(_));
