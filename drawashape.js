@@ -1,5 +1,6 @@
 (function(_) {
     current_selected = null;
+    color = 0xffffff;
     // Define our constructor
     this.Scene = function(options) {
         var defaults = {
@@ -89,7 +90,7 @@
 
         // Set the plane of the scene (used for intersect detection)
         this.plane = new THREE.Mesh(
-            new THREE.PlaneBufferGeometry( 40, 20, 8, 8 ),
+            new THREE.PlaneBufferGeometry( 50, 50, 8, 8 ),
             new THREE.MeshBasicMaterial( { visible: false } )
         );
         this.threeScene.add(this.plane);
@@ -265,14 +266,29 @@
             self.camera3D.updateMatrix();
         };
 
-        // WHEN USER CLIC
+        // WHEN USER CLICK
+        /**
+         * @desc When user clicks in 2D zone. He can:
+         * 1. Start to navigate in the zone (using ctrl or mouse wheel clic);
+         * 2. Create a Shape;
+         * 3. Start to move a Shape.
+         */
         this.domElement2D.addEventListener('mousedown', function(event) {
-            // Move camera on mouse3 + move
-            if (! event.ctrlKey && 4 != event.buttons)
-                return;
-            self.previousCam2DPos = getMousePosition(event);
-            self.domElement2D.addEventListener('mousemove', moveAction2D);
+            // 1. Start to navigate
+            if (event.ctrlKey || 4 == event.buttons) {
+                self.previousCam2DPos = getMousePosition(event);
+                self.domElement2D.addEventListener('mousemove', moveAction2D);
+            } else {
+            // 2. Create a Shape
+                var inter = self.intersectPlane(getMousePosition(event));
+                var line = new Line().core;
+                var pos = getMousePosition(event);
+                line.translateX(inter.point.x);
+                line.translateY(inter.point.y);
+                self.threeScene.add(line);
+            }
         });
+
         this.domElement3D.addEventListener('mousedown', function(event) {
             self.camera3D.updateMouseDown(event);
             self.domElement3D.addEventListener('mousemove', moveAction3D);
@@ -414,8 +430,8 @@
         }
     };
 
-    Scene.prototype.intersectPlane = function() {
-        this.raycaster.setFromCamera(this, this.camera2D);
+    Scene.prototype.intersectPlane = function(mousePosition) {
+        this.raycaster.setFromCamera(mousePosition, this.camera2D);
         var intersects = this.raycaster.intersectObject(this.plane);
         return intersects[0];
     };
@@ -435,4 +451,55 @@
         }
         return null;
     };
+
+    /**
+     * Shape is the abstraction of any thing which can be drawn in the drawing zone
+     * For example a Line or a Rectangle
+     * A Shape is always composed of many elements:
+     *   - A parent element (invisible for user) used to group components of the shape;
+     *   - A core: the main element the user is interested in;
+     *   - Hears: an Hear can be grabbed to change dimensions of Shape;
+     *   - A Text: placed at CoreShape center (usually for numbers display).
+     */
+    var Shape = {
+        text: null,
+        core: null,
+        hears: [],
+
+        /**
+         * Initialize position of the parent object
+         * (must originally be at (0,0,0))
+         */
+        initPosition: function(x, y) {
+            this.translateX(x);
+            this.translateY(y);
+            this.translateZ(this.GetCoreShape().scale.z / 2);
+        },
+        
+        InitMaterial: function() {
+            this.core.material.transparent = true;
+            this.core.material.opacity = 0.8;
+        },
+
+        /** On select, unhide hears */
+        select: function() {
+            for (var i = 0; i < this.hears.length; i++)
+                this.hears[i].visible = true;
+            this.core.select();
+        },
+
+        /** When unselected, hide hears */
+        unselect: function() {
+            for (var i = 0; i < this.hears.length; i++) 
+                this.hears[i].visible = false;
+            this.core.unselect();
+        },
+    };
+
+    var Line = function() {
+        var geometry = new THREE.BoxGeometry(1, 1, 1);
+        var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        this.core = new THREE.Mesh(geometry, material);
+    };
+
 }(_));
