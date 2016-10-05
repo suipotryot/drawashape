@@ -1,9 +1,8 @@
 (function(_) {
-    SELECTED = [];
     COLOR = 0xffffff;
     INTERSECTED = null;
     DRAGGED = null;
-    DRAWS = [];
+    LINE = "line";
     // Define our constructor
     this.Scene = function(options) {
         var defaults = {
@@ -30,6 +29,8 @@
             gridHelperStep: 1,
         };
         this.scale = 1;
+        this.DRAWS = [];
+        this.SELECTED = [];
         
         this.threeScene = new THREE.Scene();
 
@@ -117,30 +118,11 @@
 
     // METHODS
     /**
-     * @desc Set the color of the instance
-     * @param hex color
-     * @param hex colororig
-     * @return null
-     */
-    Scene.prototype.setColor = function(color, colororig=false) {
-        COLOR = color;
-        if (colororig) {
-            for (var shape in this.shapes) {
-                //TODO
-            }
-        }
-    },
-
-    /**
      * @desc Return the current color used for shapes.
      * @return hex
      */
     Scene.prototype.getColor = function() {
         return COLOR;
-    },
-
-    Scene.prototype.setDrawType = function(drawtype) {
-        this.drawtype = drawtype;
     },
 
     Scene.prototype.getDrawType = function(drawtype) {
@@ -176,14 +158,6 @@
         return this[fieldname];
     },
 
-    Scene.prototype.draw2Din = function(el) {
-        el.appendChild(this.domElement2D);
-    };
-
-    Scene.prototype.draw3Din = function(el) {
-        el.appendChild(this.domElement3D);
-    };
-
     Scene.prototype.intersectPlane = function(mousePosition) {
         this.raycaster.setFromCamera(mousePosition, this.camera2D);
         var intersects = this.raycaster.intersectObject(this.plane);
@@ -205,13 +179,72 @@
         }
         return res;
     };
+    // END METHODS
+
+
+    // PUBLIC API
+    Scene.prototype.addLine = function(coordinates) {
+        var line = LineFactory.makeLine();
+        line.translateX(coordinates.x);
+        line.translateY(coordinates.y);
+        for (var o in this.SELECTED) {
+            this.SELECTED[o].unselect();
+        }
+        this.SELECTED = [line];
+        this.DRAWS[line.uuid] = line;
+        this.threeScene.add(line);
+    },
+    /**
+     * @desc Set the color of the instance
+     * @param hex color
+     * @param hex colororig
+     * @return null
+     */
+    Scene.prototype.setColor = function(color, colororig=false) {
+        COLOR = color;
+        if (colororig) {
+            for (var shape in this.shapes) {
+                //TODO
+            }
+        }
+    },
+
+    Scene.prototype.setDrawType = function(drawtype) {
+        this.drawtype = drawtype;
+    },
+
+    Scene.prototype.draw2Din = function(el) {
+        el.appendChild(this.domElement2D);
+    };
+
+    Scene.prototype.draw3Din = function(el) {
+        el.appendChild(this.domElement3D);
+    };
 
     /**
      * @desc Return the current selection of the Scene
      * @return []
      */
     Scene.prototype.getSelection = function() {
-        return SELECTED;
+        return this.SELECTED;
+    },
+
+    /**
+     * @desc Return the list of shapes in the current selection with the 
+     * given parameters.
+     * @param {} parameters
+     * @return []
+     */
+    Scene.prototype.getSelectionByParams = function(param) {
+        var selection = this.getSelection();
+        var res = [];
+        for (var s in selection) {
+            if ((! param.color || param.color == selection[s].color)
+                    && (! param.type || param.type == selection[s].type)) {
+                res.push(selection[s]);
+            }
+        }
+        return res;
     },
 
     /**
@@ -219,23 +252,23 @@
      * selected this way.
      */
     Scene.prototype.selectAll = function(color=false) {
-        SELECTED = [];
-        for (var o in DRAWS) {
-            DRAWS[o].select();
-            SELECTED.push(DRAWS[o]);
+        this.SELECTED = [];
+        for (var o in this.DRAWS) {
+            this.DRAWS[o].select();
+            this.SELECTED.push(this.DRAWS[o]);
         }
-        return DRAWS;
+        return this.DRAWS;
     },
 
     /**
      * @desc Delete all shapes in current selection
      */
     Scene.prototype.deleteSelection = function() {
-        for (var o in SELECTED) {
-            delete DRAWS[SELECTED[o].uuid];
-            this.threeScene.remove(SELECTED[o]);
+        for (var o in this.SELECTED) {
+            delete this.DRAWS[this.SELECTED[o].uuid];
+            this.threeScene.remove(this.SELECTED[o]);
         }
-        SELECTED = [];
+        this.SELECTED = [];
     },
 
     /**
@@ -245,15 +278,15 @@
      */
     Scene.prototype.setScale = function(scale) {
         var ratio = scale / this.scale;
-        for (var d in DRAWS) {
-            DRAWS[d].scale.set(DRAWS[d].scale.x,
-                               DRAWS[d].scale.y * ratio,
-                               DRAWS[d].scale.z * ratio);
+        for (var d in this.DRAWS) {
+            this.DRAWS[d].scale.set(this.DRAWS[d].scale.x,
+                               this.DRAWS[d].scale.y * ratio,
+                               this.DRAWS[d].scale.z * ratio);
         }
         
         this.scale = scale;
     },
-    // END METHODS
+    // END PUBLIC API
 
 
     // BIND EVENTS
@@ -363,29 +396,21 @@
                 if (inter.length == 0) {
                 // 2. Create a Shape
                     var inter = self.intersectPlane(pos);
-                    var line = LineFactory.makeLine();
-                    line.translateX(inter.point.x);
-                    line.translateY(inter.point.y);
-                    self.threeScene.add(line);
-                    for (var o in SELECTED) {
-                        SELECTED[o].unselect();
-                    }
-                    SELECTED = [line];
-                    DRAWS[line.uuid] = line;
+                    self.addLine(inter.point);
                 } else {
                 // 3. Start Dragging shape
                     inter[0].object.parent.select();
                     DRAGGED = inter[0].object;
                     self.domElement2D.addEventListener('mousemove', drag2D);
                     if (! event.shiftKey) {
-                        for (var o in SELECTED) {
-                            if (SELECTED[o] !== inter[0].object.parent) {
-                                SELECTED[o].unselect();
+                        for (var o in self.SELECTED) {
+                            if (self.SELECTED[o] !== inter[0].object.parent) {
+                                self.SELECTED[o].unselect();
                             }
                         }
-                        SELECTED = [];
+                        self.SELECTED = [];
                     } 
-                    SELECTED.push(inter[0].object.parent);
+                    self.SELECTED.push(inter[0].object.parent);
                 }
             }
         });
@@ -544,6 +569,8 @@
             // Core is what the user works with
             line.core = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
                     new THREE.MeshLambertMaterial({ color: COLOR }));
+            line.color = COLOR;
+            line.type = LINE;
 
             // 2. Add those to the Object
             line.add(line.core);

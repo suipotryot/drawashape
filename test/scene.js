@@ -116,4 +116,64 @@
         assert.equal(s.getDrawType(), "rect");
     });
 
+    QUnit.test("Scene.getSelection afer a line was added", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        s.addLine({x: 0, y: 0});
+    
+        // Assertion
+        assert.equal(s.getSelection().length, 1);
+    });
+
+    QUnit.test("Scene.getSelection for multiple selection", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        for (var i = 0, len = 10; i < len; i++) {
+            s.addLine({x: i, y: i});
+        }
+        s.selectAll();
+    
+        // Assertion
+        assert.equal(s.getSelection().length, 10);
+    });
+
+    QUnit.test("Scene.getSelectionByParams by color", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        s.setColor(0x888888);
+        for (var i = 0, len = 4; i < len; i++) {
+            s.addLine({x: i, y: i});
+        }
+        s.setColor(0x444444);
+        for (var i = 0, len = 7; i < len; i++) {
+            s.addLine({x: i, y: i});
+        }
+        s.selectAll()
+    
+        // Assertion
+        assert.equal(s.getSelectionByParams({color: 0x888888}).length, 4);
+        assert.equal(s.getSelectionByParams({color: 0x444444}).length, 7);
+        assert.equal(s.getSelectionByParams({color: 0xffffff}).length, 0);
+    });
+
+    QUnit.test("Scene.getSelectionByParams by type", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        for (var i = 0, len = 4; i < len; i++) {
+            s.addLine({x: i, y: i});
+        }
+        s.selectAll()
+    
+        // Assertion
+        assert.equal(s.getSelectionByParams({type: "line"}).length, 4);
+    });
+
 })(QUnit);
