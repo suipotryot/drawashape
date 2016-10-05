@@ -3,6 +3,7 @@
     color = 0xffffff;
     INTERSECTED = null;
     DRAGGED = null;
+    DRAWS = [];
     // Define our constructor
     this.Scene = function(options) {
         var defaults = {
@@ -226,6 +227,30 @@
     Scene.prototype.getSelection = function() {
         return SELECTED;
     },
+
+    /**
+     * @desc Select every shape in the scene. Return the array of shapes
+     * selected this way.
+     */
+    Scene.prototype.selectAll = function(color=false) {
+        SELECTED = [];
+        for (var o in DRAWS) {
+            DRAWS[o].select();
+            SELECTED.push(DRAWS[o]);
+        }
+        return DRAWS;
+    },
+
+    /**
+     * @desc Delete all shapes in current selection
+     */
+    Scene.prototype.deleteSelection = function() {
+        for (var o in SELECTED) {
+            delete DRAWS[SELECTED[o].uuid];
+            this.threeScene.remove(SELECTED[o]);
+        }
+        SELECTED = [];
+    },
     // END METHODS
 
 
@@ -344,6 +369,7 @@
                         SELECTED[o].unselect();
                     }
                     SELECTED = [line];
+                    DRAWS[line.uuid] = line;
                 } else {
                     inter[0].object.parent.select();
                     DRAGGED = inter[0].object;
