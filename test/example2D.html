@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf8'>
+    <title>Drawashape Example 2D</title>
+    <style>
+        body { margin: 0; }
+        canvas { width: 90%; height: 90%; }
+    </style>
+</head>
+<body>
+    <script src="vendor/underscore.js"></script>
+    <script src="vendor/three.min.js"></script>
+    <script src="../drawashape.js"></script>
+
+    <script type="text/javascript" charset="utf-8">
+
+        var scene = new Scene();
+        scene.draw2Din(document.body);
+
+
+        var geometry = new THREE.BoxGeometry(1, 1, 1);
+        var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        var cube = new THREE.Mesh(geometry, material);
+        scene.threeScene.add(cube);
+        scene.camera2D.position.z = 5;
+
+        var render = function () {
+            requestAnimationFrame(render);
+
+            cube.rotation.x += 0.1;
+            cube.rotation.y += 0.1;
+
+            scene.renderer2D.render(scene.threeScene, scene.camera2D);
+        }
+        render();
+    </script>
+</body>
+</html>
