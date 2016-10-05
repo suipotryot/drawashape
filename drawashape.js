@@ -1,5 +1,5 @@
 (function(_) {
-    current_selected = null;
+    SELECTED = [];
     color = 0xffffff;
     INTERSECTED = null;
     DRAGGED = null;
@@ -161,14 +161,6 @@
     },
 
     /**
-     * @desc Set the dimension of the futur shapes. If color is passed,
-     * change the dimension of all existing shapes of the color.
-     * @param Object fields
-     * @param String color
-     * @return 
-     */
-
-    /**
      * @desc Set the given dimension for futur shapes. If color is passed,
      * also change all existing shapes of the color to those dimensions.
      * @param Object fields
@@ -197,10 +189,47 @@
         return this[fieldname];
     },
 
+    Scene.prototype.draw2Din = function(el) {
+        el.appendChild(this.domElement2D);
+    };
+
+    Scene.prototype.draw3Din = function(el) {
+        el.appendChild(this.domElement3D);
+    };
+
+    Scene.prototype.intersectPlane = function(mousePosition) {
+        this.raycaster.setFromCamera(mousePosition, this.camera2D);
+        var intersects = this.raycaster.intersectObject(this.plane);
+        return intersects[0];
+    };
+
+    /**
+     * Return an Shape containing mouse interseciton with the fisrt met target
+     * in given list.
+     */
+    Scene.prototype.intersectAny = function(mousePosition) {
+        this.raycaster.setFromCamera(mousePosition, this.camera2D);
+        var intersects = this.raycaster.intersectObjects(this.threeScene.children, true);
+        var res = [];
+        for (var i = 0; i < intersects.length; i++) {
+            if (intersects[i].object.parent != this.threeScene) {
+                res.push(intersects[i]);
+            }
+        }
+        return res;
+    };
+
+    /**
+     * @desc Return the current selection of the Scene
+     * @return []
+     */
+    Scene.prototype.getSelection = function() {
+        return SELECTED;
+    },
     // END METHODS
 
-    // BIND EVENTS
 
+    // BIND EVENTS
     /**
      * @desc 
      */
@@ -285,7 +314,6 @@
 
         // WHEN USER DRAGS A SHAPE
         var drag2D = function (event) {
-            console.log("dragging lalala");
             var inter = self.intersectPlane(getMousePosition(event));
             DRAGGED.drag2D(inter.point);
         }
@@ -312,10 +340,23 @@
                     line.translateX(inter.point.x);
                     line.translateY(inter.point.y);
                     self.threeScene.add(line);
+                    for (var o in SELECTED) {
+                        SELECTED[o].unselect();
+                    }
+                    SELECTED = [line];
                 } else {
                     inter[0].object.parent.select();
                     DRAGGED = inter[0].object;
                     self.domElement2D.addEventListener('mousemove', drag2D);
+                    if (! event.shiftKey) {
+                        for (var o in SELECTED) {
+                            if (SELECTED[o] !== inter[0].object.parent) {
+                                SELECTED[o].unselect();
+                            }
+                        }
+                        SELECTED = [];
+                    } 
+                    SELECTED.push(inter[0].object.parent);
                 }
             }
         });
@@ -346,15 +387,10 @@
         });
 
     };
+    // END BIND EVENTS
 
-    Scene.prototype.draw2Din = function(el) {
-        el.appendChild(this.domElement2D);
-    };
 
-    Scene.prototype.draw3Din = function(el) {
-        el.appendChild(this.domElement3D);
-    };
-
+    // CAMERAS
     var Camera2d = {
 
         initPosition: function() {
@@ -379,8 +415,6 @@
         },
 
         updatePosition: function(previousPos, actualPos) {
-            console.log(previousPos);
-            console.log(actualPos);
             this.position.x += (this.xMax) * (previousPos.x - actualPos.x) / this.zoom;
             this.position.y += (this.yMax) * (previousPos.y - actualPos.y) / this.zoom;
             this.dontCrossBorders();
@@ -462,29 +496,10 @@
             return false;
         }
     };
+    // END CAMERAS
 
-    Scene.prototype.intersectPlane = function(mousePosition) {
-        this.raycaster.setFromCamera(mousePosition, this.camera2D);
-        var intersects = this.raycaster.intersectObject(this.plane);
-        return intersects[0];
-    };
 
-    /**
-     * Return an Shape containing mouse interseciton with the fisrt met target
-     * in given list.
-     */
-    Scene.prototype.intersectAny = function(mousePosition) {
-        this.raycaster.setFromCamera(mousePosition, this.camera2D);
-        var intersects = this.raycaster.intersectObjects(this.threeScene.children, true);
-        var res = [];
-        for (var i = 0; i < intersects.length; i++) {
-            if (intersects[i].object.parent != this.threeScene) {
-                res.push(intersects[i]);
-            }
-        }
-        return res;
-    };
-
+    // SHAPES BY FACTORIES
     var LineFactory = {
         makeLine: function() {
             var line = new THREE.Object3D();
@@ -603,5 +618,6 @@
             return line;
         },
     };
+    // END SHAPES BY FACTORIES
 
 }(_));
