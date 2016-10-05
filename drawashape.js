@@ -122,7 +122,85 @@
 
     };
 
+    // METHODS
+    /**
+     * @desc Set the color of the instance
+     * @param hex color
+     * @param hex colororig
+     * @return null
+     */
+    Scene.prototype.setColor = function(color, colororig=false) {
+        this.color = color;
+        if (colororig) {
+            for (var shape in this.shapes) {
+                this.shapes[shape]
+            }
+            
+        }
+    },
+
+    /**
+     * @desc Return the current color used for shapes.
+     * @return hex
+     */
+    Scene.prototype.getColor = function() {
+        return this.color;
+    },
+
+    Scene.prototype.setDrawType = function(drawtype) {
+        this.drawtype = drawtype;
+    },
+
+    Scene.prototype.getDrawType = function(drawtype) {
+        return this.drawtype;
+    },
+
+    /**
+     * @desc Set the dimension of the futur shapes. If color is passed,
+     * change the dimension of all existing shapes of the color.
+     * @param Object fields
+     * @param String color
+     * @return 
+     */
+
+    /**
+     * @desc Set the given dimension for futur shapes. If color is passed,
+     * also change all existing shapes of the color to those dimensions.
+     * @param Object fields
+     * @param hex color
+     */
+    Scene.prototype.setDimension = function(fields, color=false) {
+        for (var field in fields) {
+            this[field] = fields[field];
+        }
+        if (color) {
+            for (var shape in this.shapes) {
+                if (this.shapes[shape].color === color) {
+                    this.shapes[shape].setDimension(fields);
+                }
+            }
+            
+        }
+    },
+
+    /**
+     * @desc Return the dimension of the passed fieldname
+     * @param String fieldname
+     * @return float
+     */
+    Scene.prototype.getDimension = function(fieldname) {
+        return this[fieldname];
+    },
+
+    // END METHODS
+
     // BIND EVENTS
+
+    /**
+     * @desc 
+     * @param 
+     * @return 
+     */
     Scene.prototype.bindEvents = function() {
         var self = this;
         this.width = this.renderer2D.domElement.width;

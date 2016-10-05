@@ -72,4 +72,48 @@
         assert.deepEqual(s.options, expected);
     });
 
+    /**
+     * @desc setColor and getcolor methods
+     */
+    QUnit.test("Scene.setColor and getColor", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        s.setColor(0x050505);
+    
+        // Assertion
+        assert.equal(s.getColor(), 0x050505);
+    });
+
+    /**
+     * @desc scene.setDimension with object
+     */
+    QUnit.test("Scene.setDimension with object", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        s.setDimension({height: 12, stroke: 15, width: 11});
+    
+        // Assertion
+        assert.equal(s.getDimension("height"), 12);
+        assert.equal(s.getDimension("stroke"), 15);
+        assert.equal(s.getDimension("width"), 11);
+    });
+
+    /**
+     * @desc setDrawType and getDimension
+     */
+    QUnit.test("Scene.setDrawType and getDrawType", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        s.setDrawType("rect");
+    
+        // Assertion
+        assert.equal(s.getDrawType(), "rect");
+    });
+
 })(QUnit);
