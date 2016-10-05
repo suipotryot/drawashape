@@ -2,6 +2,7 @@
     current_selected = null;
     color = 0xffffff;
     INTERSECTED = null;
+    DRAGGED = null;
     // Define our constructor
     this.Scene = function(options) {
         var defaults = {
@@ -202,8 +203,6 @@
 
     /**
      * @desc 
-     * @param 
-     * @return 
      */
     Scene.prototype.bindEvents = function() {
         var self = this;
@@ -263,32 +262,33 @@
             self.camera2D.updateMatrix();
         };
 
-        // WHEN USER JUST MOVE MOUSE IN 2D VIEW (HOVER OR NOT)
-        this.domElement2D.addEventListener("mousemove", function(event) {
-            var pos = getMousePosition(event);
-            var inter = self.intersectAny(getMousePosition(event));
-            if (inter.length > 0) {
-                if (INTERSECTED != inter[0].object) {
-                    if (INTERSECTED) {
-                        INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
-                    }
-                    INTERSECTED = inter[0].object
-                    INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-                    INTERSECTED.material.emissive.setHex(0xff0000);
-                }
-            } else {
-                if (INTERSECTED) {
-                    INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
-                }
-                INTERSECTED = null;
-            }
-        });
-
         // WHEN USER DRAG IN THE SCREEN (3D) TO MOVE THE CAMERA
         var moveAction3D = function(event) {
             self.camera3D.updateEvent(event);
             self.camera3D.updateMatrix();
         };
+
+        // WHEN USER JUST MOVE MOUSE IN 2D VIEW (HOVER OR NOT)
+        this.domElement2D.addEventListener("mousemove", function(event) {
+            var inter = self.intersectAny(getMousePosition(event));
+            if (inter.length > 0) {
+                if (INTERSECTED != inter[0].object) {
+                    if (INTERSECTED) INTERSECTED.unhover();
+                    INTERSECTED = inter[0].object;
+                    INTERSECTED.hover();
+                }
+            } else {
+                if (INTERSECTED) INTERSECTED.unhover();
+                INTERSECTED = null;
+            }
+        });
+
+        // WHEN USER DRAGS A SHAPE
+        var drag2D = function (event) {
+            console.log("dragging lalala");
+            var inter = self.intersectPlane(getMousePosition(event));
+            DRAGGED.drag2D(inter.point);
+        }
 
         // WHEN USER CLICK
         /**
@@ -303,13 +303,20 @@
                 self.previousCam2DPos = getMousePosition(event);
                 self.domElement2D.addEventListener('mousemove', moveAction2D);
             } else {
-            // 2. Create a Shape
-                var inter = self.intersectPlane(getMousePosition(event));
-                var line = new Line().ref;
                 var pos = getMousePosition(event);
-                line.translateX(inter.point.x);
-                line.translateY(inter.point.y);
-                self.threeScene.add(line);
+                var inter = self.intersectAny(pos);
+                if (inter.length == 0) {
+                // 2. Create a Shape
+                    var inter = self.intersectPlane(pos);
+                    var line = LineFactory.makeLine();
+                    line.translateX(inter.point.x);
+                    line.translateY(inter.point.y);
+                    self.threeScene.add(line);
+                } else {
+                    inter[0].object.parent.select();
+                    DRAGGED = inter[0].object;
+                    self.domElement2D.addEventListener('mousemove', drag2D);
+                }
             }
         });
 
@@ -322,6 +329,8 @@
         this.domElement2D.addEventListener('mouseup', function(event) {
             event.preventDefault();
             self.domElement2D.removeEventListener('mousemove', moveAction2D);
+            DRAGGED = null;
+            self.domElement2D.removeEventListener('mousemove', drag2D);
         });
         this.domElement3D.addEventListener('mouseup', function(event) {
             event.preventDefault();
@@ -469,7 +478,6 @@
         var intersects = this.raycaster.intersectObjects(this.threeScene.children, true);
         var res = [];
         for (var i = 0; i < intersects.length; i++) {
-            // TODO
             if (intersects[i].object.parent != this.threeScene) {
                 res.push(intersects[i]);
             }
@@ -477,56 +485,123 @@
         return res;
     };
 
-    /**
-     * Shape is the abstraction of any thing which can be drawn in the drawing zone
-     * For example a Line or a Rectangle
-     * A Shape is always composed of many elements:
-     *   - A parent element (invisible for user) used to group components of the shape;
-     *   - A core: the main element the user is interested in;
-     *   - Hears: an Hear can be grabbed to change dimensions of Shape;
-     *   - A Text: placed at CoreShape center (usually for numbers display).
-     */
-    var Shape = {
-        text: null,
-        core: null,
-        hears: [],
+    var LineFactory = {
+        makeLine: function() {
+            var line = new THREE.Object3D();
+            // 1. Create hears and core
+            // Hears allow to grab shape borders and redim it
+            line.hears = [];
+            line.hears.push(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.5),
+                    new THREE.MeshLambertMaterial({ color: 0x999999 })));
+            line.hears[0].position.set(-0.7, 0, 0);
+            line.hears.push(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.5),
+                    new THREE.MeshLambertMaterial({ color: 0x999999 })));
+            line.hears[1].position.set(0.65, 0, 0);
+            // Core is what the user works with
+            line.core = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
+                    new THREE.MeshLambertMaterial({ color: 0x00ff00 }));
 
-        /**
-         * Initialize position of the parent object
-         * (must originally be at (0,0,0))
-         */
-        initPosition: function(x, y) {
-            this.translateX(x);
-            this.translateY(y);
-            this.translateZ(this.GetCoreShape().scale.z / 2);
-        },
-        
-        InitMaterial: function() {
-            this.core.material.transparent = true;
-            this.core.material.opacity = 0.8;
-        },
+            // 2. Add those to the Object
+            line.add(line.core);
+            line.add(line.hears[0]);
+            line.add(line.hears[1]);
 
-        /** On select, unhide hears */
-        select: function() {
-            for (var i = 0; i < this.hears.length; i++)
-                this.hears[i].visible = true;
-            this.core.select();
-        },
+            // 3. Define custom methods for shape
+            line.select = function() {
+                for (var h in line.hears) {
+                    line.hears[h].visible = true;
+                }
+            };
 
-        /** When unselected, hide hears */
-        unselect: function() {
-            for (var i = 0; i < this.hears.length; i++) 
-                this.hears[i].visible = false;
-            this.core.unselect();
-        },
-    };
+            line.unselect = function() {
+                for (var h in line.hears) {
+                    line.hears[h].visible = false;
+                }
+            };
 
-    var Line = function() {
-        var geometry = new THREE.BoxGeometry(1, 1, 1);
-        var material = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
-        this.ref = new THREE.Object3D();
-        this.core = new THREE.Mesh(geometry, material);
-        this.ref.add(this.core);
+            var hover = function() {
+                this.currentHex = this.material.emissive.getHex();
+                this.material.emissive.setHex(0xff0000);
+            };
+            var hoverhear = function() {
+                this.currentHex = this.material.emissive.getHex();
+                this.material.emissive.setHex(0xff0000);
+                this.parent.core.hover();
+            };
+
+            var unhover = function() {
+                this.material.emissive.setHex(this.currentHex);
+            };
+            var unhoverhear = function() {
+                this.material.emissive.setHex(this.currentHex);
+                this.parent.core.unhover();
+            };
+
+            line.core.hover = hover;
+            line.core.unhover = unhover;
+            line.hears[0].hover = hoverhear;
+            line.hears[0].unhover = unhoverhear;
+            line.hears[1].hover = hoverhear;
+            line.hears[1].unhover = unhoverhear;
+
+            line.updatePosition = function() {
+                var distToLeftHear = new THREE.Vector3();
+                var hearLeft = this.hears[0],
+                    hearRight = this.hears[1];
+                distToLeftHear.copy(hearLeft.position);
+                hearLeft.position.set(0, 0, 0);
+                hearLeft.rotation.z = 0;
+                hearRight.rotation.z = 0;
+                hearRight.position.z = 0;
+                this.translateX(distToLeftHear.x);
+                this.translateY(distToLeftHear.y);
+                hearRight.translateX(-distToLeftHear.x);
+                hearRight.translateY(-distToLeftHear.y);
+                this.core.position.set(0, 0, 0);
+                // 2
+                this.core.scale.x = lineLenght(hearLeft.position,
+                                                hearRight.position) - 0.2;
+                // 3
+                var posB = hearRight.position;
+                var rotationZ = (posB.x != 0 ? Math.atan(posB.y / posB.x) : Math.PI / 2);
+                hearRight.rotation.z = rotationZ;
+                hearLeft.rotation.z = rotationZ;
+                this.core.rotation.set(0, 0, rotationZ); 
+                // 4
+                this.core.position.setX(hearRight.position.x / 2);
+                this.core.position.setY(hearRight.position.y / 2);
+                // 5
+                //this.UpdateTextPosition();
+            };
+            
+            var drag2D = function(point) {
+                this.position.set(point.x - this.parent.position.x,
+                                  point.y - this.parent.position.y,
+                                  this.position.z);
+                this.parent.updatePosition();
+            };
+
+            line.hears[0].drag2D = drag2D;
+            line.hears[1].drag2D = drag2D;
+            line.core.drag2D = function(point) {
+                this.parent.position.set(point.x,
+                                  point.y,
+                                  this.parent.position.z);
+            };
+
+            /**
+             * @desc Return the lenght of the line between given 2 points
+             * @param point1
+             * @param point2
+             * @return float
+             */
+            var lineLenght = function(point1, point2) {
+                return Math.sqrt(Math.pow(point1.y - point2.y, 2) + 
+                                 Math.pow(point1.x - point2.x, 2)) - 0.2;
+            };
+
+            return line;
+        },
     };
 
 }(_));
