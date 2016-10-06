@@ -92,14 +92,13 @@
     QUnit.test("Scene.setDimension with object", function(assert) {
         // Assignation
         var s = new Scene();
+        var dim = {height: 12, stroke: 15, width: 11};
     
         // Action
-        s.setDimension({height: 12, stroke: 15, width: 11});
+        s.setDimension(dim);
     
         // Assertion
-        assert.equal(s.getDimension("height"), 12);
-        assert.equal(s.getDimension("stroke"), 15);
-        assert.equal(s.getDimension("width"), 11);
+        assert.deepEqual(s.getDimension(), dim);
     });
 
     /**
@@ -174,6 +173,52 @@
     
         // Assertion
         assert.equal(s.getSelectionByParams({type: "line"}).length, 4);
+    });
+
+    QUnit.test("Scene.setDimension", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        var line1 = s.addLine({x: 0, y: 0});
+        s.setDimension({width: 12, height: 3, up: 8});
+        var line2 = s.addLine({x: 0, y: 0});
+    
+        // Assertion
+        assert.equal(line2.core.scale.y, line1.core.scale.y * 12);
+        assert.equal(line2.core.scale.z, line1.core.scale.z * 3);
+    });
+
+    QUnit.test("Scene.setSelectionDimension", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        var line = s.addLine({x: 0, y: 0});
+        s.setSelectionDimension({width: 12, height: 3, up: 8});
+    
+        // Assertion
+        assert.equal(line.core.scale.y, 12);
+        assert.equal(line.core.scale.z, 3);
+    });
+
+    QUnit.test("Scene.setSelectionDimension only to selection", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        var line1 = s.addLine({x: 0, y: 0});
+        var line2 = s.addLine({x: 0, y: 0});
+        var line3 = s.addLine({x: 0, y: 0});
+        s.setSelectionDimension({width: 12, height: 3, up: 8});
+    
+        // Assertion
+        assert.equal(line1.core.scale.y, 1);
+        assert.equal(line1.core.scale.z, 1);
+        assert.equal(line2.core.scale.y, 1);
+        assert.equal(line2.core.scale.z, 1);
+        assert.equal(line3.core.scale.y, 12);
+        assert.equal(line3.core.scale.z, 3);
     });
 
 })(QUnit);

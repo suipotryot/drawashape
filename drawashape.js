@@ -29,6 +29,11 @@
             gridHelperStep: 1,
         };
         this.scale = 1;
+        this.dimension = {
+            height: 1,
+            width: 1,
+            stroke: 1,
+        };
         this.DRAWS = [];
         this.SELECTED = [];
         
@@ -130,32 +135,11 @@
     },
 
     /**
-     * @desc Set the given dimension for futur shapes. If color is passed,
-     * also change all existing shapes of the color to those dimensions.
-     * @param Object fields
-     * @param hex color
+     * @desc Return the dimension
+     * @return {}
      */
-    Scene.prototype.setDimension = function(fields, color=false) {
-        for (var field in fields) {
-            this[field] = fields[field];
-        }
-        if (color) {
-            for (var shape in this.shapes) {
-                if (this.shapes[shape].color === color) {
-                    this.shapes[shape].setDimension(fields);
-                }
-            }
-            
-        }
-    },
-
-    /**
-     * @desc Return the dimension of the passed fieldname
-     * @param String fieldname
-     * @return float
-     */
-    Scene.prototype.getDimension = function(fieldname) {
-        return this[fieldname];
+    Scene.prototype.getDimension = function() {
+        return this.dimension;
     },
 
     Scene.prototype.intersectPlane = function(mousePosition) {
@@ -184,7 +168,7 @@
 
     // PUBLIC API
     Scene.prototype.addLine = function(coordinates) {
-        var line = LineFactory.makeLine();
+        var line = LineFactory.makeLine(this.dimension);
         line.translateX(coordinates.x);
         line.translateY(coordinates.y);
         for (var o in this.SELECTED) {
@@ -193,7 +177,31 @@
         this.SELECTED = [line];
         this.DRAWS[line.uuid] = line;
         this.threeScene.add(line);
+        return line;
     },
+
+    /**
+     * @desc Set the given dimension for futur shapes.
+     * @param Object fields
+     */
+    Scene.prototype.setDimension = function(fields) {
+        for (var f in this.dimension) {
+            if (fields[f]) {
+                this.dimension[f] = fields[f];
+            }
+        }
+    },
+
+    /**
+     * @desc Set the given dimension to selected shapes
+     * @param Object fields
+     */
+    Scene.prototype.setSelectionDimension = function(fields) {
+        for (var s in this.SELECTED) {
+            this.SELECTED[s].setDimension(fields);
+        }
+    },
+
     /**
      * @desc Set the color of the instance
      * @param hex color
@@ -555,7 +563,7 @@
 
     // SHAPES BY FACTORIES
     var LineFactory = {
-        makeLine: function() {
+        makeLine: function(dimension) {
             var line = new THREE.Object3D();
             // 1. Create hears and core
             // Hears allow to grab shape borders and redim it
@@ -569,6 +577,8 @@
             // Core is what the user works with
             line.core = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
                     new THREE.MeshLambertMaterial({ color: COLOR }));
+            line.core.scale.setY(dimension.width);
+            line.core.scale.setZ(dimension.height);
             line.color = COLOR;
             line.type = LINE;
 
@@ -643,6 +653,11 @@
                 this.core.position.setY(hearRight.position.y / 2);
                 // 5
                 //this.UpdateTextPosition();
+            };
+
+            line.setDimension = function(fields) {
+                if (fields.height) this.core.scale.z = fields.height;
+                if (fields.width) this.core.scale.y = fields.width;
             };
             
             var drag2D = function(point) {
