@@ -221,4 +221,38 @@
         assert.equal(line3.core.scale.z, 3);
     });
 
+    QUnit.test("Scene.setSelectionColor", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        var line = s.addLine({x: 0, y: 0});
+        s.setSelectionColor(0xff00ff);
+    
+        // Assertion
+        assert.equal(line.core.material.color.r, 1); // ff for red
+        assert.equal(line.core.material.color.g, 0); // 00 for green
+        assert.equal(line.core.material.color.b, 1); // ff gor blue
+    });
+
+    QUnit.test("Scene.setSelectionColor only to selection", function(assert) {
+        // Assignation
+        var s = new Scene();
+    
+        // Action
+        s.setColor(0x000000);
+        var line0 = s.addLine({x: 0, y: 0});
+        var line = s.addLine({x: 0, y: 0});
+        s.setSelectionColor(0xff00ff);
+    
+        // Assertion
+        assert.equal(line.core.material.color.r, 1); // ff for red
+        assert.equal(line.core.material.color.g, 0); // 00 for green
+        assert.equal(line.core.material.color.b, 1); // ff gor blue
+
+        assert.equal(line0.core.material.color.r, 0); // ff for red
+        assert.equal(line0.core.material.color.g, 0); // ff for green
+        assert.equal(line0.core.material.color.b, 0); // ff gor blue
+    });
+
 })(QUnit);

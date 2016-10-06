@@ -205,15 +205,20 @@
     /**
      * @desc Set the color of the instance
      * @param hex color
-     * @param hex colororig
      * @return null
      */
-    Scene.prototype.setColor = function(color, colororig=false) {
+    Scene.prototype.setColor = function(color) {
         COLOR = color;
-        if (colororig) {
-            for (var shape in this.shapes) {
-                //TODO
-            }
+    },
+
+    /**
+     * @desc Set the color of shapes in the selection
+     * @param hex color
+     * @return null
+     */
+    Scene.prototype.setSelectionColor = function(color) {
+        for (var shape in this.SELECTED) {
+            this.SELECTED[shape].setColor(color);
         }
     },
 
@@ -658,6 +663,10 @@
             line.setDimension = function(fields) {
                 if (fields.height) this.core.scale.z = fields.height;
                 if (fields.width) this.core.scale.y = fields.width;
+            };
+
+            line.setColor = function(color) {
+                this.core.material.color = new THREE.Color(color);
             };
             
             var drag2D = function(point) {
