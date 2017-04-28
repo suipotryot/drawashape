@@ -1,28 +1,69 @@
 # drawashape
 Draw 2D and 3D scenes (using three.js) in HTML DOM and gives usable simple methods to work with drawed shapes.
 
-# Contenu de l'API
-## Action sur l'API
-### Création de la Scene et des DrawZones
-* **new DrawZone.Scene()** Retourne une Scene contenant un shape correspondant à l'échelle.
+# Getting started
+<code html>
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <meta charset=utf-8>
+            <title>My first three.js app</title>
+            <style>
+                body { margin: 0; }
+                canvas { width: 50%; height: 100% }
+                #canvas3D { position: absolute; left: 50%; top:0; }
+            </style>
+        </head>
+        <body>
+            <div id="canvas2D" class="name"> </div>
+            <div id="canvas3D" class="name"> </div>
 
-### Actions sur la Scene
-* OK **Scene.draw2Din($el: DOM)** Affiche la DrawZone2D de la Scene dans l'élément $el donné. 
-* OK **Scene.draw3Din($el: DOM)** Affiche la DrawZone3D de la Scene dans l'élément $el donné.
-* OK **Scene.setSelectionColor(color: hex) : void** -> Change la couleur des shapes sélectionnés.
-* OK **Scene.setColor(color: hex) : void** -> Détermine la couleur des shapes futurs.
-* OK **Scene.setDrawType(type: str) : void** -> Détermine le type des shapes futurs ("rect", "line")
-* OK **Scene.getSelection() : Shape[]** -> Retourne un tableau contenant tous les shapes sélectionnés dans la zone.
-* OK **Scene.getSelectionByParams(param: {}) : Shape[]** -> Retourne un tableau contenant les shapes sélectionnés répondant aux paramètres passés (color, type, ...).
-* OK **Scene.setSelectionDimension({stroke: float, height: float, up: float}) : void** -> Détermine l'épaisseur/la hauteur/la distance au sol des shapes selectionnés.
-* OK **Scene.setDimension({stroke: float, height: float, up: float}) : void** -> Détermine l'épaisseur/la hauteur/la distance au sol des shapes futurs.
-* OK **Scene.setScale(val: float) : void** -> Détermine la valeur de l'échalle associée au shape d'échelle.
-* OK **Scene.selectAll(param: {}) : void** -> Sélectionne tous les shapes de la Scene (mais pas l'échelle). Si un param est donnée, sélectionne uniquement les shapes répondant à ce paramètre.
-* OK **Scene.deleteSelection() : int** -> Supprime les shapes selectionnés, retourne le nombre de shapes supprimés de la sorte.
-* **Scene.toJSON() : json** -> Retourne l'export JSON de la Scene.
-* **Scene.loadJSON(json:json) : void** -> Charge et trace les shapes du json passé en paramètre.
+            <script src="js/three.js"></script>
+            <script src="js/underscore-min.js"></script>
+            <script src="js/jquery.js"></script>
 
-### Evenements de la Scene
-* **shapeadded** -> lancé lorsqu'un shape a été tracé. **event.shape** contient le shape en question.
-* **shapeupdated** -> lancé lorsqu'un shape a été redimensionné. **event.shape** contient le shape en question.
-* **scaleupdated** -> lancé lorsque le shape de l'échelle a été redimensionné.
+            <script src="js/drawashape.js"></script>
+            
+            <script>
+                $(document).ready(function() {
+                    var scene = new DRAWASHAPE.Scene();
+
+                    scene.draw2Din(document.getElementById("canvas2D"));
+                    scene.draw3Din(document.getElementById("canvas3D"));
+
+                    var render = function () {
+                        requestAnimationFrame( render );
+                        scene.renderer2D.render(scene.threeScene, scene.camera2D);
+                        scene.renderer3D.render(scene.threeScene, scene.camera3D);
+                    };
+
+                    render();
+                });
+            </script>
+
+        </body>
+    </html>
+</code>
+
+# API content
+
+## Actions on the Scene
+* **Scene.draw2Din($el: DOM)** Display DrawZone2D of the Scene in given element $el. 
+* **Scene.draw3Din($el: DOM)** Display DrawZone3D of the Scene in given element $el.
+* **Scene.setSelectionColor(color: hex) : void** -> Change selected Shapes color to given one.
+* **Scene.setColor(color: hex) : void** -> Set the color for further drawed Shapes.
+* **Scene.setDrawType(type: str) : void** -> Set the type of further drawed Shapes ("rect", "line")
+* **Scene.getSelection() : Shape[]** -> Return a list of all selected Shapes.
+* **Scene.getSelectionByParams(param: {}) : Shape[]** -> Return a list of all selected Shapes with given caracteristics (color, type, ...).
+* **Scene.setSelectionDimension({stroke: float, height: float, up: float}) : void** -> Set stroke, height and up of selected Shapes.
+* **Scene.setDimension({stroke: float, height: float, up: float}) : void** -> Set stroke, height, up of futur drawed Shapes.
+* **Scene.setScale(val: float) : void** -> Set the value for Scale Shape.
+* **Scene.selectAll(param: {}) : void** -> Selec all Shapes in the Shence (without scale Shape). If param is given, select only those corresponding to this param.
+* **Scene.deleteSelection() : int** -> Delete selected Shapes. Return the number of deleted Shapes this way.
+* **Scene.toJSON() : json** -> Return JSON export of the Scene.
+* **Scene.loadJSON(json:json) : void** -> Load JSON in the Scene.
+
+## Events in the Scene
+* **shapeadded** -> raised when a Shape has been drawn. **event.shape** contain the drawed Shape.
+* **shapeupdated** -> raised when a Shape has been resized. **event.shape** contain the drawed Shape.
+* **scaleupdated** -> raised when Scale shape is resized.
