@@ -1,6 +1,6 @@
 /*jslint nomen: true */
 /*jslint browser: true*/
-/*global $, jQuery, alert, _, THREE, Scene*/
+/*global _, THREE, Scene*/
 
 (function (_) {
     //"use strict";
