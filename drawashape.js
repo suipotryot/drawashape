@@ -187,7 +187,11 @@
                 line.add(line.hears[1]);
 
                 // 3. Define custom methods for shape
-                line.select = function () {
+                line.select = (clickPosition) => {
+                    line.clickDiff = {
+                        x: line.position.x - clickPosition.x,
+                        y: line.position.y - clickPosition.y,
+                    }
                     var h;
                     for (h in line.hears) {
                         if (line.hears.hasOwnProperty(h)) {
@@ -260,8 +264,8 @@
                 line.hears[0].drag2D = drag2D;
                 line.hears[1].drag2D = drag2D;
                 line.core.drag2D = function (point) {
-                    this.parent.position.set(point.x,
-                                             point.y,
+                    this.parent.position.set(point.x + line.clickDiff.x,
+                                             point.y + line.clickDiff.y,
                                              this.parent.position.z);
                 };
                 return line;
@@ -292,8 +296,8 @@
                     },
                     
                     drag2D = function (point) {
-                        this.position.set(point.x - this.parent.position.x,
-                                          point.y - this.parent.position.y,
+                        this.position.set(point.x - this.parent.position.x + line.clickDiff.x,
+                                          point.y - this.parent.position.y + line.clickDiff.y,
                                           this.position.z);
                         this.parent.updatePosition();
                     },
@@ -325,7 +329,12 @@
                 line.add(line.hears[1]);
 
                 // 3. Define custom methods for shape
-                line.select = function () { };
+                line.select = (clickPosition) => {
+                    line.clickDiff = {
+                        x: line.position.x - clickPosition.x,
+                        y: line.position.y - clickPosition.y,
+                    }
+                };
                 line.unselect = function () { };
 
                 line.core.hover = hover;
@@ -376,8 +385,8 @@
                 line.hears[0].drag2D = drag2D;
                 line.hears[1].drag2D = drag2D;
                 line.core.drag2D = function (point) {
-                    this.parent.position.set(point.x,
-                                             point.y,
+                    this.parent.position.set(point.x + line.clickDiff.x,
+                                             point.y + line.clickDiff.y,
                                              this.parent.position.z);
                 };
 
@@ -520,7 +529,6 @@
         this.threeScene.add(this.scaleShape);
 
         this.bindEvents();
-
     };
 
     // METHODS
@@ -850,14 +858,12 @@
                     self.addLine(inter.point);
                 } else {
                     // 3. Start Dragging shape
-                    inter[0].object.parent.select();
+                    inter[0].object.parent.select(inter[0].point);
                     DRAGGED = inter[0].object;
                     self.domElement2D.addEventListener('mousemove', drag2D);
                     if (!event.shiftKey) {
                         for (o in self.SELECTED) {
-                            if (self.SELECTED[o] !== inter[0].object.parent) {
-                                self.SELECTED[o].unselect();
-                            }
+                            self.SELECTED[o].unselect();
                         }
                         self.SELECTED = [];
                     }
