@@ -157,7 +157,7 @@
                         this.parent.core.unhover();
                     },
                     
-                    drag2D = function (point) {
+                    dragHear2D = function (point) {
                         this.position.set(point.x - this.parent.position.x,
                                           point.y - this.parent.position.y,
                                           this.position.z);
@@ -257,8 +257,8 @@
                     this.core.material.color = new THREE.Color(color);
                 };
 
-                line.hears[0].drag2D = drag2D;
-                line.hears[1].drag2D = drag2D;
+                line.hears[0].drag2D = dragHear2D;
+                line.hears[1].drag2D = dragHear2D;
                 line.core.drag2D = function (point) {
                     this.parent.position.set(point.x,
                                              point.y,
@@ -270,7 +270,7 @@
 
         LineArrowFactory = {
             makeLine: function () {
-                var line = new THREE.Object3D(),
+                var lineArrow = new THREE.Object3D(),
                     coneGeometry,
                     hover = function () {
                         this.currentHex = this.material.emissive.getHex();
@@ -291,9 +291,9 @@
                         this.parent.core.unhover();
                     },
                     
-                    drag2D = function (point) {
-                        this.position.set(point.x - this.parent.position.x,
-                                          point.y - this.parent.position.y,
+                    dragHear2D = function (point) {
+                        this.position.set(point.x - this.parent.position.x + lineArrow.clickDiff.x,
+                                          point.y - this.parent.position.y + lineArrow.clickDiff.y,
                                           this.position.z);
                         this.parent.updatePosition();
                     },
@@ -305,37 +305,42 @@
                 
                 // 1. Create hears and core
                 // Hears allow to grab shape borders and redim it
-                line.hears = [];
+                lineArrow.hears = [];
                 coneGeometry = new THREE.CylinderGeometry(0, 0.2, 0.5, 8, 1);
-                line.hears.push(new THREE.Mesh(coneGeometry,
+                lineArrow.hears.push(new THREE.Mesh(coneGeometry,
                                                new THREE.MeshLambertMaterial({ color: COLOR })));
-                line.hears[0].position.set(-0.7, 0, 0);
-                line.hears.push(new THREE.Mesh(coneGeometry,
+                lineArrow.hears[0].position.set(-0.7, 0, 0);
+                lineArrow.hears.push(new THREE.Mesh(coneGeometry,
                                                new THREE.MeshLambertMaterial({ color: COLOR })));
-                line.hears[1].position.set(0.65, 0, 0);
+                lineArrow.hears[1].position.set(0.65, 0, 0);
                 // Core is what the user works with
-                line.core = new THREE.Mesh(
+                lineArrow.core = new THREE.Mesh(
                     new THREE.CylinderGeometry(0.1, 0.1, 1, 3, 1),
                     new THREE.MeshLambertMaterial({ color: COLOR })
                 );
 
                 // 2. Add those to the Object
-                line.add(line.core);
-                line.add(line.hears[0]);
-                line.add(line.hears[1]);
+                lineArrow.add(lineArrow.core);
+                lineArrow.add(lineArrow.hears[0]);
+                lineArrow.add(lineArrow.hears[1]);
 
                 // 3. Define custom methods for shape
-                line.select = function () { };
-                line.unselect = function () { };
+                lineArrow.select = (clickPosition) => {
+                    lineArrow.clickDiff = {
+                        x: lineArrow.position.x - clickPosition.x,
+                        y: lineArrow.position.y - clickPosition.y,
+                    }
+                };
+                lineArrow.unselect = function () { };
 
-                line.core.hover = hover;
-                line.core.unhover = unhover;
-                line.hears[0].hover = hoverhear;
-                line.hears[0].unhover = unhoverhear;
-                line.hears[1].hover = hoverhear;
-                line.hears[1].unhover = unhoverhear;
+                lineArrow.core.hover = hover;
+                lineArrow.core.unhover = unhover;
+                lineArrow.hears[0].hover = hoverhear;
+                lineArrow.hears[0].unhover = unhoverhear;
+                lineArrow.hears[1].hover = hoverhear;
+                lineArrow.hears[1].unhover = unhoverhear;
 
-                line.updatePosition = function () {
+                lineArrow.updatePosition = function () {
                     // 1
                     var hearLeft = this.hears[0],
                         hearRight = this.hears[1],
@@ -373,23 +378,23 @@
                     //this.NoticeListeners();
                 };
 
-                line.hears[0].drag2D = drag2D;
-                line.hears[1].drag2D = drag2D;
-                line.core.drag2D = function (point) {
-                    this.parent.position.set(point.x,
-                                             point.y,
+                lineArrow.hears[0].drag2D = dragHear2D;
+                lineArrow.hears[1].drag2D = dragHear2D;
+                lineArrow.core.drag2D = function (point) {
+                    this.parent.position.set(point.x + lineArrow.clickDiff.x,
+                                             point.y + lineArrow.clickDiff.y,
                                              this.parent.position.z);
                 };
 
                 /**
-                 * @desc Return the lenght of the line between given 2 points
+                 * @desc Return the lenght of the lineArrow between given 2 points
                  * @param point1
                  * @param point2
                  * @return float
                  */
 
-                line.updatePosition();
-                return line;
+                lineArrow.updatePosition();
+                return lineArrow;
             }
         };
         // END SHAPES BY FACTORIES
@@ -737,34 +742,34 @@
      */
     Scene.prototype.bindEvents = function () {
         var self = this,
-            getMousePosition = function (event) {
-                var rect = self.renderer2D.domElement.getBoundingClientRect(),
-                    style = window.getComputedStyle(self.renderer2D.domElement),
-                    paddingLeft = parseInt(style["padding-left"], 10),
-                    x = ((event.clientX - rect.left - paddingLeft) / self.width) * 2 - 1,
-                    y = -((event.clientY - rect.top) / self.height) * 2 + 1;
-                return {x: x, y: y};
-            },
+        getMousePosition = function (event) {
+            var rect = self.renderer2D.domElement.getBoundingClientRect(),
+                style = window.getComputedStyle(self.renderer2D.domElement),
+                paddingLeft = parseInt(style["padding-left"], 10),
+                x = ((event.clientX - rect.left - paddingLeft) / self.width) * 2 - 1,
+                y = -((event.clientY - rect.top) / self.height) * 2 + 1;
+            return {x: x, y: y};
+        },
 
-            // WHEN USER DRAG IN THE SCREEN (2D) TO MOVE THE CAMERA
-            moveAction2D = function (event) {
-                var pos = getMousePosition(event);
-                self.camera2D.updatePosition(self.previousCam2DPos, pos);
-                self.previousCam2DPos = pos;
-                self.camera2D.updateMatrix();
-            },
+        // WHEN USER DRAG IN THE SCREEN (2D) TO MOVE THE CAMERA
+        moveAction2D = function (event) {
+            var pos = getMousePosition(event);
+            self.camera2D.updatePosition(self.previousCam2DPos, pos);
+            self.previousCam2DPos = pos;
+            self.camera2D.updateMatrix();
+        },
 
-            // WHEN USER DRAG IN THE SCREEN (3D) TO MOVE THE CAMERA
-            moveAction3D = function (event) {
-                self.camera3D.updateEvent(event);
-                self.camera3D.updateMatrix();
-            },
-        
-            // WHEN USER DRAGS A SHAPE
-            drag2D = function (event) {
-                var inter = self.intersectPlane(getMousePosition(event));
-                DRAGGED.drag2D(inter.point);
-            };
+        // WHEN USER DRAG IN THE SCREEN (3D) TO MOVE THE CAMERA
+        moveAction3D = function (event) {
+            self.camera3D.updateEvent(event);
+            self.camera3D.updateMatrix();
+        },
+    
+        // WHEN USER DRAGS A SHAPE
+        drag2D = function (event) {
+            var inter = self.intersectPlane(getMousePosition(event));
+            DRAGGED.drag2D(inter.point);
+        };
         
         this.width = this.renderer2D.domElement.width;
         this.height = this.renderer2D.domElement.height;
